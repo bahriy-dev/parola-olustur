@@ -2,7 +2,8 @@
 
 import { useLocale } from '@/lib/i18n';
 import { AlertTriangle,Check,CheckCircle2,Copy,Info,XCircle } from 'lucide-react';
-import { cloneElement,forwardRef,isValidElement,useId,useState,type ButtonHTMLAttributes,type KeyboardEvent,type InputHTMLAttributes,type ReactNode,type SelectHTMLAttributes,type TextareaHTMLAttributes } from 'react';
+import { useAdoptPreHydrationValue,useHydrated } from '@/lib/hydration';
+import { cloneElement,forwardRef,isValidElement,useId,useImperativeHandle,useRef,useState,type ButtonHTMLAttributes,type KeyboardEvent,type InputHTMLAttributes,type ReactNode,type SelectHTMLAttributes,type TextareaHTMLAttributes } from 'react';
 
 // Shared form vocabulary: every tool composes these so spacing, focus and type stay consistent.
 
@@ -22,12 +23,15 @@ const buttonVariants: Record<ButtonVariant, string> = {
 };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant; size?: 'sm' | 'md' }>(
-  function Button({ variant = 'secondary', size = 'md', className = '', type = 'button', ...props }, ref) {
+  function Button({ variant = 'secondary', size = 'md', className = '', type = 'button', disabled, ...props }, ref) {
+    // Before hydration a submit button would post the form natively and reload the page, losing what was typed.
+    const hydrated = useHydrated();
     const sizing = size === 'sm' ? 'h-8 px-2.5 text-[13px] gap-1.5' : 'h-10 px-4 text-sm gap-2';
     return (
       <button
         ref={ref}
         type={type}
+        disabled={disabled || (type === 'submit' && !hydrated)}
         className={`inline-flex shrink-0 items-center justify-center rounded-lg font-medium transition-[color,background-color,border-color,transform] active:translate-y-px cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 disabled:active:translate-y-0 ${sizing} ${buttonVariants[variant]} ${className}`}
         {...props}
       />
@@ -61,13 +65,19 @@ export function Field({ label, hint, error, children, htmlFor, className = '' }:
 
 export const TextInput = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement> & { mono?: boolean }>(
   function TextInput({ className = '', mono, ...props }, ref) {
-    return <input ref={ref} className={`${control} h-10 ${mono ? 'font-mono' : ''} ${className}`} {...props} />;
+    const inner = useRef<HTMLInputElement>(null);
+    useImperativeHandle(ref, () => inner.current!, []);
+    useAdoptPreHydrationValue(inner);
+    return <input ref={inner} className={`${control} h-10 ${mono ? 'font-mono' : ''} ${className}`} {...props} />;
   },
 );
 
 export const TextArea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<HTMLTextAreaElement> & { mono?: boolean }>(
   function TextArea({ className = '', mono, rows = 4, ...props }, ref) {
-    return <textarea ref={ref} rows={rows} className={`${control} resize-y leading-relaxed ${mono ? 'font-mono' : ''} ${className}`} {...props} />;
+    const inner = useRef<HTMLTextAreaElement>(null);
+    useImperativeHandle(ref, () => inner.current!, []);
+    useAdoptPreHydrationValue(inner);
+    return <textarea ref={inner} rows={rows} className={`${control} resize-y leading-relaxed ${mono ? 'font-mono' : ''} ${className}`} {...props} />;
   },
 );
 
