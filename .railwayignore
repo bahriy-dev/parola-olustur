@@ -1,0 +1,13 @@
+# Uploaded by `railway up`: everything except dependencies, build output and local test artefacts.
+node_modules
+.next
+output
+test-results
+playwright-report
+*.tgz
+.DS_Store
+.env*
+
+.git
+.claude
+.gemini

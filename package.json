@@ -1,0 +1,64 @@
+{
+  "name": "parola-olustur",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "test": "tsx --test tests/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "test:tools": "tsx --test --test-timeout=900000 tests/tools.fuzz.ts",
+    "test:e2e": "playwright test",
+    "check": "npm run typecheck && npm run lint && npm test && npm run build",
+    "package:source": "tar --exclude=node_modules --exclude=.next --exclude=.git --exclude=.claude --exclude=.gemini --exclude=.railway --exclude=.env --exclude='.env.*' --exclude='*.tgz' --exclude='*.pem' --exclude='*.key' --exclude='*.p12' --exclude='*.pfx' --exclude='.DS_Store' --exclude='*.tsbuildinfo' --exclude=test-results --exclude=playwright-report --exclude=output --exclude=__MACOSX -czf parola-source.tgz ."
+  },
+  "dependencies": {
+    "@noble/hashes": "^2.4.0",
+    "@types/bcryptjs": "^2.4.6",
+    "bcryptjs": "^3.0.3",
+    "canvas-confetti": "^1.9.4",
+    "lucide-react": "^1.66.0",
+    "next": "16.4.3",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "zxcvbn": "^4.4.2"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
+    "@playwright/test": "^1.64.1",
+    "@tailwindcss/turbopack": "^4",
+    "@types/canvas-confetti": "^1.9.0",
+    "@types/node": "^24.19.2",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@types/zxcvbn": "^4.4.5",
+    "eslint": "^9",
+    "eslint-config-next": "16.4.3",
+    "tailwindcss": "^4",
+    "tsx": "^4.23.15",
+    "typescript": "^5"
+  },
+  "description": "Browser-based password generation, hashing and cryptography tools in Turkish and English.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bahriy-dev/parola-olustur.git"
+  },
+  "homepage": "https://parolaolustur.com",
+  "bugs": {
+    "url": "https://github.com/bahriy-dev/parola-olustur/issues"
+  },
+  "keywords": [
+    "password-generator",
+    "cryptography",
+    "hash",
+    "nextjs",
+    "typescript",
+    "privacy"
+  ]
+}

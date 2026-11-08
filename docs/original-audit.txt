@@ -1,0 +1,356 @@
+PAROLA.DEV — uçtan uca kaynak kod, ürün ve güvenlik incelemesi
+
+Kaynak: Kullanıcının gönderdiği parola-olustur.zip (Next.js/React kaynak kodu). İnceleme tarihi: 1 Kasım 2026. Yöntem: Statik kaynak kod okuması, 70 araç ve 83 hash kayıt eşleştirmesi, seçili fonksiyonların çalıştırılması, TypeScript ve ESLint denemesi. Sınır: Gerçek dağıtım ortamında tarayıcı ağ trafiği, bağımsız sızma testi, tüm cihaz/ekran testleri ve 83 algoritmanın tamamının test vektörleri doğrulaması yapılmadı. Dolayısıyla bu bir kapsamlı kaynak kod denetimidir; sertifikasyon veya mutlak eksiksizlik garantisi değildir.
+
+Yönetici özeti
+
+- 70 araç kaydı, 6 araç kategorisi; ayrıca 83 hash kataloğu kaydı, 8 hash kategorisi.
+- 70 araçtan 13'ü için özel ToolRunner işleyici bulunmuyor; 4'ü ana sayfada çalışan üretici işlevine başka bir URL'den erişilmesi gerekirken SHA-256 fallback'e düşüyor.
+- 83 hash kaydının en az 37'sinde sunulan algoritmayla hesaplama yönteminin uyuşmadığı/yanlış olduğu kaynak kodundan görülüyor. Sayı, bu incelemede tespit edilen alt sınırdır.
+- TypeScript tsc --noEmit başarılı. ESLint: 12 hata, 68 uyarı. Next.js build, interneti olmayan analiz ortamında Linux SWC paketi indirilemediği için doğrulanamadı (kod derlemesinin başarısız olduğunu göstermez).
+- SHA-256, SHA-1 ve MD5 için abc testleri doğru. MD2, SHA-0 vb. gerçek algoritma yerine başka işlem üretiyor. Özel test: tüm PIN rakamları dışlanırsa 000000; tüm parola karakterleri dışlanırsa filtreyi ihlal eden parola üretiliyor.
+- Yayın kararı: Yanlış kriptografik araçları devre dışı bırakıp kalanları test etmeden “70 güvenli araç / 83 algoritma” iddiasıyla yayına çıkılmamalı.
+
+A. P0 — yanlış sonuçlar ve doğrudan güvenlik problemleri
+ID	Dosya / satır	Bulgular ve neden	Düzeltme / kabul ölçütü
+P0-01	src/lib/hash/engine.ts:235-264	MD2, MD4, MD6 adı altında başka hash dönüşümleri üretiliyor	Bilinen test vektörlü gerçek implementasyon veya destek kaldırma
+P0-02	src/lib/hash/engine.ts:268-271	SHA-0, SHA-256 ilk 20 baytını kullanıyor	Gerçek SHA-0 veya kaldırma
+P0-03	src/lib/hash/engine.ts:347-368	RIPEMD/128/256/320 varyantları RIPEMD-160 kombinasyonlarıyla taklit	Gerçek varyantlar veya kaldırma
+P0-04	src/lib/hash/engine.ts:370-423	Whirlpool, Tiger/Tiger2, GOST, Streebog, SM3, Skein, Groestl, JH, Kupyna sahte	Gerçek algoritma; aksi halde katalogdan kaldırma
+P0-05	src/lib/hash/engine.ts:432-471	CRC64, MurmurHash2, bazı MurmurHash3, xxHash/XXH3, CityHash, FarmHash, HighwayHash yanlış algoritmalara yönleniyor	Her birinin referans test vektörü geçmeli
+P0-06	src/lib/hash/engine.ts:162-211	SipHash24 yalnızca son parçayı işliyor; tam blokların döngüsü yok, anahtar bayt sırası da şüpheli	SipHash resmi test vektörleri (0-63 bayt)
+P0-07	src/lib/hash/engine.ts:537-540	Bilinmeyen algoritma hata yerine SHA-256 olarak hesaplanıyor	UnsupportedAlgorithmError fırlat; UI destek dışı yazmalı
+P0-08	src/components/tools/ToolRunner.tsx:332-348	sha1, sha224, sha384, sha512 slug'ları motorun tireli slug'larıyla uyuşmuyor; sha256 tesadüfen doğru sonuç	Merkezi, tipli slug haritası; 12/12 araç test
+P0-09	src/components/tools/ToolRunner.tsx:504-537	AES-CBC ve ChaCha20 yalnızca açıklama döndürüyor; RSA PEM örnek metni sahte	Gerçek kriptografi veya UI'da “henüz mevcut değil” ve kapalı buton
+P0-10	src/components/tools/ToolRunner.tsx:631-635	İşleyicisi olmayan 13 araç sessizce SHA-256 çıktısına düşüyor	Exhaustive switch, never kontrolü, açık hata, kayıt/işleyici testi
+P0-11	src/components/tools/ToolRunner.tsx:472-476	HOTP Math.random() ile 6 hane üretip RFC 4226 diye sunuyor	HMAC tabanlı HOTP + sayaç + RFC vektörleri
+P0-12	src/lib/tools-engine.ts:344-367	TOTP Base32 secret'ı decode etmiyor	Base32 decode + RFC 6238 vektörleri ve oturum kayması kontrolü
+P0-13	src/components/tools/ToolRunner.tsx:617-621	Ethereum Keccak-256 = SHA3-256 hatası	Gerçek Keccak-256 ve Ethereum test vektörü
+P0-14	src/components/tools/ToolRunner.tsx:187-195	Breach-checker gerçek ihlal sorgusu yapmıyor	k-anonymity API sorgusu ekle; trafik/gizlilik dokümanını güncelle veya aracı “ön ek hesaplayıcı” diye adlandır
+P0-15	src/lib/crypto.ts:206-213	PIN rakamlarının hepsi yasaklanırsa 000000 üretiyor	İmkânsız konfigürasyonda açık doğrulama hatası
+P0-16	src/lib/crypto.ts:86-102	Parola havuzu boşsa kullanıcının kısıtlarını yok sayarak küçük harflerle üretim yapıyor	Boş karakter havuzunu engelle ve hata göster
+P0-17	src/lib/tools-engine.ts:276-296	JWT alg allowlist kontrolü yok; beklenmeyen değer HS256'ya düşüyor	Algoritma sabit/izinli listeden; header alg tek başına güven kaynağı değil; imza ile claim farklı sonuçlar
+P0-18	src/lib/tools-engine.ts:411-459	AES-GCM parolayı doğrudan sıfır doldurup/keserek anahtara çeviriyor	Parolaya özgü KDF + salt + IV + sürümlü envelope, veya ham 256-bit key doğrulama
+
+B. P1 — parola, KDF, token ve veri biçimi hataları
+ID	Kaynak	Bulgular / düzeltme
+P1-01	crypto.ts:133-158	Yan yana tekrar engelleme başarısız olabilir, kategoriden bir karakterin varlığını bozabilir; yeniden doğrula/garanti et
+P1-02	crypto.ts:87-95	Özel karakter kümesinde yinelenen semboller seçilim olasılığını değiştirir; Set ile tekilleştir
+P1-03	crypto.ts:223-230	PIN tekrarsız istendiğinde havuz tükenince tekrar açılıyor; yasak kuralı sessizce bozuluyor
+P1-04	crypto.ts:265	PIN 200 denemede başarısızsa kısa/tahmin edilebilir digits.slice(0,length) döndürüyor; hata olmalı
+P1-05	crypto.ts:173-179	Passphrase 30 çekilişte indeks tekrarı olabilir; 3-10 kelime için güvenli örnekleme/şuffle kullan
+P1-06	wordlists.ts, PassphraseControls.tsx:102-112	7.776/EFF iddiası yanlış: TR 367, EN 340 kelime; listeyi doğrula/güncelle veya doğru sayıyı göster
+P1-07	entropy.ts:142-176	Parola/pin entropisi bağımsız eş dağılım varsayımıyla hesaplanıyor; kısıtlı örnekleme ve tekrarsız mod dikkate alınmıyor
+P1-08	entropy.ts:163-165	Bütün kelimeleri büyük harfle başlatmak deterministik, +1 bit entropi kazandırmaz
+P1-09	tools-engine.ts:73-117	Parola güç puanı tahmin edilebilir parolayı aşırı güçlü gösterebilir; süre tahmini bağlamdan kopuk
+P1-10	tools-engine.ts:120-129	NIST uyumlu olarak sunulan politika büyük/küçük/rakam/sembol zorunlu tutuyor; gerçek standart yaklaşımıyla yeniden tasarla
+P1-11	ToolRunner.tsx:151-162	“Shannon entropy” etiketi yanlış: benzersiz karakter sayısı üzerinden L×log2(N), ölçülmüş Shannon entropisi değil
+P1-12	tools-engine.ts:132-154	“Constant-time” eşitlik === kullanıyor; Levenshtein benzerliği ayrıca hassas girdiler üzerinde O(m×n) maliyet
+P1-13	tools-engine.ts:169-206, hash/engine.ts:474-518	Argon2id t=2,m=1024 KiB; scrypt N=1024; PBKDF2 c=10.000; üretim parola saklama profili için düşük
+P1-14	aynı	Salt varsayılanları sabit; her parola için CSPRNG ile eşsiz salt üret, parametre/salt içeren PHC/encoded format döndür
+P1-15	ToolRunner.tsx:246-254,279-288	Argon2id/scrypt doğrulayıcıları salt/parametre ayrıştırmıyor; salt dışındaki ayarları eski hashden çıkaramıyor
+P1-16	ToolRunner.tsx:197-210	bcrypt hash .toLowerCase() ile değiştiriliyor; bcrypt karakter dizgesi case-sensitive, doğrulama bozulabilir
+P1-17	ToolRunner.tsx:213-235,380-386,573-582	Parola, JWT secret, token ve KDF anahtarları sonuç metnine aynen ekleniyor; gizli verilerin gereksiz tekrarını kaldır
+P1-18	tools-engine.ts:47-57,240-273	JWT Header/Payload Base64URL işlemleri ham Latin-1 gibi, UTF-8 standardına uymuyor; karşılıklı iki yerel işlem bu kusuru gizleyebilir
+P1-19	tools-engine.ts:276-297	JWT exp/nbf/iss/aud kontrolü yok; yalnızca imza doğrulaması yapılıyor, etiket/arayüz ayrımı net olmalı
+P1-20	tools-engine.ts:292-293	İmza string kıyaslaması sabit-zamanlı değil; normalize edilmiş bayt + timing-safe yaklaşım
+P1-21	tools-engine.ts:299-318	UUID v4 fallback Math.random, UUIDv7 rastgele bayt elde edemezse sıfır, V7 varyant nibble sabit 8 (dağılım azalır)
+P1-22	tools-engine.ts:321-342	NanoID alfabesi/dağılımı standart değil, % modulo bias var; crypto yoksa sıfırlardan id/token üretiliyor
+P1-23	tools-engine.ts:411-459	AES-GCM için sadece encrypt UI; decrypt UI, versiyon, KDF parametreleri, bozuk veri hata sunumu eksik
+P1-24	ToolRunner.tsx:586-603, hash/engine.ts:230-231	HMAC boş anahtar yerine sabit demo anahtarına düşüyor, verifier string karşılaştırması yapıyor
+P1-25	ToolRunner.tsx:605-615	“Checksum verifier” kullanıcıdan hedef checksum alıp doğrulamıyor, sadece hesaplıyor
+P1-26	hash/identifier.ts:28-38	Argon2 PHC tipi yakalanıyor ama ilk argon2 kaydı dönüyor; id/i/d arasında yanlış teşhis
+P1-27	hash/identifier.ts:45-73	Hex uzunluk benzerliğine “Yüksek” güven veriliyor; alg tek başına uzunluktan kesin tespit edilemez
+P1-28	MasterHashTool.tsx:82-112	Girdi değişiminde ağır işleme otomatik tetik, hata yakalama ve iptal/stale sonuç koruması yok
+P1-29	MasterHashTool.tsx:145-160	Dosya tam olarak FileReader/ArrayBuffer belleğine alınıyor, boyut limiti/streaming yok
+P1-30	ToolRunner.tsx:133-135,648-650	Her tuşta bcrypt/Argon2/PBKDF2 hesaplanıyor; debouncing/worker/iptal yok, UI takılabilir
+P1-31	CodeSnippetModal.tsx:21-91	Aynı secret .env içinde JWT, DB, NextAuth için tekrar kullanılıyor; anahtar ayrıştırma ihlali
+P1-32	CodeSnippetModal.tsx:21-91	Şablonda sadece " kaçırılıyor; newline, backslash, shell metakarakterleri özel formatları bozabilir; bağlama özgü escape uygula
+
+C. P2 — arayüz, mimari, performans ve SEO
+ID	Kaynak	Bulgular / düzeltme
+P2-01	CryptoWorkstation.tsx:117-164	Native history.pushState Next router ile yarışıyor; Next router.push/Link kullan, server metadata ve client route eşlensin
+P2-02	layout.tsx:38-40, araç metadata	Layout global canonical /; dinamik sayfalar için gerçek canonical tanımlanmalı (SEO riski)
+P2-03	sitemap.ts:9-78	Her build'de tüm rotalar lastModified=now alıyor; gerçek içerik değişimini yansıtmıyor
+P2-04	sitemap.ts:9-78	Toplu parola, gizlilik, SSS, güvenlik rehberi gibi sayfalar sitemap'te yok
+P2-05	page.tsx, CryptoWorkstation.tsx:151-164	CryptoKit, PAROLA.DEV, PAROLA OLUŞTUR marka adları tutarsız; title/metadata/JSON-LD tek marka
+P2-06	layout.tsx:84, entropy.ts, tools-registry.ts	Shannon, NIST ve standart etiketleri doğrulanmadan iddia ediliyor; terminoloji düzelt
+P2-07	layout.tsx:98-99, i18n	html lang="tr" sabit; EN moda geçince belge dili/meta etiketleri uyumsuz
+P2-08	tools-registry.ts:73-741, ToolRunner.tsx	Kayıt ayrık, switch ayrık, tipli kapsam güvencesi yok; tool registry'de run/status sözleşmesi
+P2-09	hash/registry.ts, hash/engine.ts	83 kayıt ile motor merkezi tek kaynak değil; id, output length ve implemented bayrağı türetilmeli
+P2-10	MasterHashTool.tsx:45-54	Çoklu hash algoritmaları sabit ve state setter yok, gerçek seçim kontrolü yok
+P2-11	ToolRunner.tsx:648-650	İlk yüklemede örnek veri ile otomatik işlem; yazı yazarken ağır kriptografi; hesapla butonu/worker
+P2-12	ToolRunner.tsx:652-656	Clipboard izni/hatası beklenmeden “kopyalandı” gösteriliyor
+P2-13	ToolRunner.tsx:725-770	Parola/gizli anahtar girdileri type=text; görünür mask/özel gösterme-kopyalama davranışı yok
+P2-14	CryptoWorkstation.tsx:265-310	Base64/Hex gösterildiğinde bit/karakter etiketleri gerçek orijinal parola için; açıklama gerekli
+P2-15	crypto.ts:19-45	getSecureRandomInt(max) için max üst sınır/taşma doğrulaması yok (dış fonksiyon tüketicileri için)
+P2-16	tools-engine.ts:388-409	Vigenère / Caesar güvenli kriptografi kategorisinde; bunlar eğitimsel “klasik şifre” olarak ayrı gösterilmeli
+P2-17	BulkModal.tsx:72, Toast.tsx:31	Math.random() dekoratif ID için kullanılıyor; kriptografik güvenlik iddiasına zarar vermese de README’nin “hiç kullanılmaz” iddiası yanlış
+P2-18	BulkModal.tsx, toplu-parola/page.tsx	Toplu üretim iki farklı komponentte tekrarlanıyor; shared feature mantığı oluşmalı
+P2-19	next.config.ts:1-17	Açık CSP, Permissions-Policy ve ek security headers belirtilmemiş; uygulamanın risk modeline göre ekle
+P2-20	src / package.json	Test framework, test vektörleri, CI workflow, hata bütçesi ve otomatik güvenlik taraması yok
+P2-21	eslint çalıştırma	12 hata + 68 uyarı var; 8 React setState-in-effect, tip/stil sorunları; pipeline geçmiyor
+P2-22	README.md	700+/7776 kelime, tüm işlemler Web Crypto, Math.random kullanılmaz, gerçek Shannon iddiaları mevcut implementasyonla çelişiyor
+P2-23	Arşiv paketleme	ZIP içerisinde node_modules, .next ve __MACOSX var; paylaşım boyutu gereksiz çok büyük ve dev cache sızıntısı riski
+P2-24	src/components/privacy/PrivacyArchitecture.tsx	“Zero Knowledge / Zero Network” mutlak güvence sunuluyor; kaynak bağımsız runtime/network denetimi gerektirir
+P2-25	tools-registry.ts	hash-identifier “Password Hashleme & KDF” kategorisinde; bilgi mimarisi ile araç sınıfı uyuşmuyor
+P2-26	hash/registry.ts	Bazı metadata ifadeleri (“sıfır çarpışma riski”) matematiksel olarak yanlış/abartılı
+
+D. 70 aracın tek tek işlev durumu
+
+Durum: KIRMIZI = yanlış/boş işleyici veya iddia edilen işlev yok; SARI = işlev var fakat önemli güvenlik/doğruluk/sunum sınırlaması var; YEŞİL = kaynakta temel işlev mevcut (yine de test gerektirir). Sınıflama manuel statik inceleme ve seçili testlerin birleşimidir.
+Kategori	Araç ID	Durum	Not
+password	password-generator	KIRMIZI	Ana sayfada çalışıyor; bağımsız URL SHA-256 sonucuna düşüyor
+password	strong-password-generator	KIRMIZI	Ana sayfada preset var; ayrı sayfa gerçek üreticiye bağlanmıyor
+password	passphrase-generator	KIRMIZI	Ana sayfada çalışıyor; ayrı sayfa üretici değil, varsayılan hash
+password	pin-generator	KIRMIZI	Ana sayfada çalışıyor; ayrı sayfa üretici değil, varsayılan hash
+password	strength-checker	SARI	Havuz/uzunluk temelli zayıf analiz; tahmini kırılma süresi yanıltıcı
+password	entropy-calculator	SARI	Shannon etiketi hatalı; tek örnekten tahmini havuz/uzunluk hesabı
+password	policy-validator	SARI	NIST etiketi varken katı karakter sınıfı zorunlu; standart uyumsuzluğu
+password	breach-checker	SARI	Gerçek sızıntı sorgusu yapılmıyor; sadece SHA-1 ön eki hesaplanıyor
+password	hash-verifier	SARI	bcrypt hash küçük harfe çevriliyor; karşılaştırma bozulabiliyor
+password	match-checker	SARI	Sabit-zamanlı iddia yanlış; Levenshtein ile gizli veri işleniyor
+kdf	bcrypt-generator	SARI	Gerçek bcrypt; ana iş parçacığında senkron, cost=10
+kdf	bcrypt-verifier	SARI	Gerçek bcrypt; senkron ve hash/parola çıktı alanına yazılıyor
+kdf	argon2id-generator	SARI	Gerçek Argon2id; sabit/elle salt, 1 MiB bellek, ham hex çıktı
+kdf	argon2id-verifier	SARI	PHC parser yok; aynı sabit salt ile hex karşılaştırma
+kdf	argon2i-generator	SARI	Gerçek Argon2i; düşük parametre ve sabit/elle salt
+kdf	argon2d-generator	SARI	Gerçek Argon2d; düşük parametre ve sabit/elle salt
+kdf	scrypt-generator	SARI	Gerçek scrypt; N=1024, sabit/elle salt, ham hex
+kdf	scrypt-verifier	SARI	Düşük N ve ham hex string karşılaştırması
+kdf	pbkdf2-sha256	SARI	Gerçek algoritma; varsayılan 10.000 iterasyon yetersiz
+kdf	pbkdf2-sha512	SARI	Gerçek algoritma; varsayılan 10.000 iterasyon yetersiz
+kdf	pbkdf2-sha1	SARI	Yalnız miras; varsayılan 10.000 iterasyon ve SHA-1
+kdf	hash-identifier	SARI	Salt uzunluk/regex temelli; yüksek güven skoru yanıltıcı
+hash	hash-md5	YEŞİL	Temel işlev kodda mevcut; bağımsız testleri yazılmalı
+hash	hash-sha1	SARI	Slug sha1 gönderiliyor; hash motoru sha-1 beklediği için SHA-256 dönüyor
+hash	hash-sha224	SARI	Slug sha224 gönderiliyor; motor sha-224 bekliyor
+hash	hash-sha256	SARI	Slug sha256 gönderiliyor; yanlış slug fallback sonucu tesadüfen doğru
+hash	hash-sha384	SARI	Slug sha384 gönderiliyor; motor sha-384 bekliyor
+hash	hash-sha512	SARI	Slug sha512 gönderiliyor; motor sha-512 bekliyor
+hash	hash-sha3-224	YEŞİL	Temel işlev kodda mevcut; bağımsız testleri yazılmalı
+hash	hash-sha3-256	YEŞİL	Temel işlev kodda mevcut; bağımsız testleri yazılmalı
+hash	hash-sha3-384	YEŞİL	Temel işlev kodda mevcut; bağımsız testleri yazılmalı
+hash	hash-sha3-512	YEŞİL	Temel işlev kodda mevcut; bağımsız testleri yazılmalı
+hash	hash-blake2b	YEŞİL	Temel işlev kodda mevcut; bağımsız testleri yazılmalı
+hash	hash-blake3	YEŞİL	Temel işlev kodda mevcut; bağımsız testleri yazılmalı
+jwt	jwt-encoder	SARI	HS256 üretimi var; UTF-8 JSON ve secret politika/claim doğrulaması eksik
+jwt	jwt-decoder	SARI	Decode var, imza doğrulaması ile karışmamalı; byte/UTF-8 uyumsuzluğu
+jwt	jwt-verifier	SARI	alg allowlist yok, claim doğrulama yok, imza eşitliği sabit-zamanlı değil
+jwt	uuid-generator	SARI	V4 API doğru; V7 varyant sabit ve kripto yoksa sıfır/random fallback
+jwt	nanoid-generator	SARI	Yinelenen alfabe, mod bias ve kripto yoksa sıfırlar
+jwt	base64-tool	SARI	Encode/decode aynı ekranda; deprecated escape/unescape ve UTF-8 karışıklığı
+jwt	hex-tool	YEŞİL	Temel işlev kodda mevcut; bağımsız testleri yazılmalı
+jwt	url-tool	SARI	Kodlama/çözme aynı ekranda; tek işlem modu yok
+jwt	html-entity-tool	YEŞİL	Temel işlev kodda mevcut; bağımsız testleri yazılmalı
+jwt	secure-token-generator	SARI	CSPRNG var; yoksa sessizce sıfırlarla token üretir
+jwt	totp-generator	SARI	Base32 çözümlemesi yok; authenticator ile uyuşmaz
+jwt	hotp-generator	KIRMIZI	HMAC yerine Math.random; RFC 4226 uygulanmamış
+jwt	api-key-generator	SARI	Rastgele token var; sk_live_ gerçek hizmet keyi değil
+jwt	csrf-token-generator	YEŞİL	Temel işlev kodda mevcut; bağımsız testleri yazılmalı
+crypto	aes-gcm	SARI	Gerçek AES-GCM yalnız encrypt; paroladan anahtar için KDF yok; decrypt UI yok
+crypto	aes-cbc	KIRMIZI	Şifreleme yapılmıyor; açıklama metni
+crypto	chacha20-poly1305	KIRMIZI	Şifreleme yapılmıyor; açıklama metni
+crypto	rsa-key-generator	KIRMIZI	Sahte PEM anahtar metni, anahtar üretmiyor
+crypto	rsa-encrypt-decrypt	KIRMIZI	İşleyici eksik, SHA-256 fallback
+crypto	rsa-sign-verify	KIRMIZI	İşleyici eksik, SHA-256 fallback
+crypto	ecdsa-key-generator	KIRMIZI	İşleyici eksik, SHA-256 fallback
+crypto	ecdsa-sign-verify	KIRMIZI	İşleyici eksik, SHA-256 fallback
+crypto	ed25519-sign-verify	KIRMIZI	İşleyici eksik, SHA-256 fallback
+crypto	caesar-cipher	SARI	Çalışıyor; klasik şifre, modern güvenlik sağlamaz; enc/dec input ayrı değil
+crypto	vigenere-cipher	SARI	Çalışıyor; klasik şifre, modern güvenlik sağlamaz; enc/dec input ayrı değil
+crypto	rot13-cipher	YEŞİL	Temel işlev kodda mevcut; bağımsız testleri yazılmalı
+keys	hkdf-tool	SARI	HKDF çalışıyor; sabit varsayılanlar ve tüm girdiler çıktıda açık
+keys	hmac-generator	SARI	HMAC çalışıyor; varsayılan sabit anahtar
+keys	hmac-verifier	SARI	HMAC çalışıyor; eşitlik kontrolü sabit zamanlı değil
+keys	checksum-verifier	SARI	Sadece CRC32/Adler32 hesaplıyor, hedef checksum istemiyor
+keys	keccak256-tool	KIRMIZI	SHA3-256 kullanılıyor, Ethereum Keccak-256 ile farklı
+keys	ripemd160-tool	YEŞİL	RIPEMD-160 gerçek
+keys	public-key-fingerprint	KIRMIZI	İşleyici eksik, SHA-256 fallback
+keys	pem-parser	KIRMIZI	İşleyici eksik, SHA-256 fallback
+keys	ecdh-demo	KIRMIZI	İşleyici eksik, SHA-256 fallback
+keys	shamir-secret-tool	KIRMIZI	İşleyici eksik, SHA-256 fallback
+
+E. 83 hash katalog kaydının yayın durumu
+
+Bu tablo, yanlışlığı açıkça görülen sistemleri “YANLIŞ/TAKLİT”; kalanlarını “UYGULAMA VAR / TEST GEREK” diye gruplar. “Uygulama var” doğruluk sertifikası değildir. Özellikle HMAC anahtar, KDF salt ve parametreleri ayrıca test edilmelidir.
+#	Slug	Durum
+1	md2	YANLIŞ/TAKLİT — YAYINDAN KALDIR
+2	md4	YANLIŞ/TAKLİT — YAYINDAN KALDIR
+3	md5	UYGULAMA VAR — REFERANS VEKTÖR TESTİ GEREK
+4	md5-md5	UYGULAMA VAR — REFERANS VEKTÖR TESTİ GEREK
+5	md5-sha1	UYGULAMA VAR — REFERANS VEKTÖR TESTİ GEREK
+6	md6	YANLIŞ/TAKLİT — YAYINDAN KALDIR
+7	sha-0	YANLIŞ/TAKLİT — YAYINDAN KALDIR
+8	sha-1	UYGULAMA VAR — REFERANS VEKTÖR TESTİ GEREK
+9	sha-224	UYGULAMA VAR — REFERANS VEKTÖR TESTİ GEREK
+10	sha-256	UYGULAMA VAR — REFERANS VEKTÖR TESTİ GEREK
+11	sha-384	UYGULAMA VAR — REFERANS VEKTÖR TESTİ GEREK
+12	sha-512	UYGULAMA VAR — REFERANS VEKTÖR TESTİ GEREK
+13	sha-512-224	UYGULAMA VAR — REFERANS VEKTÖR TESTİ GEREK
+14	sha-512-256	UYGULAMA VAR — REFERANS VEKTÖR TESTİ GEREK
+15	sha3-224	UYGULAMA VAR — REFERANS VEKTÖR TESTİ GEREK
+16	sha3-256	UYGULAMA VAR — REFERANS VEKTÖR TESTİ GEREK
+17	sha3-384	UYGULAMA VAR — REFERANS VEKTÖR TESTİ GEREK
+18	sha3-512	UYGULAMA VAR — REFERANS VEKTÖR TESTİ GEREK
+19	shake128	UYGULAMA VAR — REFERANS VEKTÖR TESTİ GEREK
+20	shake256	UYGULAMA VAR — REFERANS VEKTÖR TESTİ GEREK
+21	cshake128	UYGULAMA VAR — REFERANS VEKTÖR TESTİ GEREK
+22	cshake256	UYGULAMA VAR — REFERANS VEKTÖR TESTİ GEREK
+23	kangarootwelve	UYGULAMA VAR — REFERANS VEKTÖR TESTİ GEREK
+24	blake-224	UYGULAMA VAR — REFERANS VEKTÖR TESTİ GEREK
+25	blake-256	UYGULAMA VAR — REFERANS VEKTÖR TESTİ GEREK
+26	blake-384	UYGULAMA VAR — REFERANS VEKTÖR TESTİ GEREK
+27	blake-512	UYGULAMA VAR — REFERANS VEKTÖR TESTİ GEREK
+28	blake2b	UYGULAMA VAR — REFERANS VEKTÖR TESTİ GEREK
+29	blake2s	UYGULAMA VAR — REFERANS VEKTÖR TESTİ GEREK
+30	blake3	UYGULAMA VAR — REFERANS VEKTÖR TESTİ GEREK
+31	ripemd	YANLIŞ/TAKLİT — YAYINDAN KALDIR
+32	ripemd-128	YANLIŞ/TAKLİT — YAYINDAN KALDIR
+33	ripemd-160	UYGULAMA VAR — REFERANS VEKTÖR TESTİ GEREK
+34	ripemd-256	YANLIŞ/TAKLİT — YAYINDAN KALDIR
+35	ripemd-320	YANLIŞ/TAKLİT — YAYINDAN KALDIR
+36	whirlpool	YANLIŞ/TAKLİT — YAYINDAN KALDIR
+37	tiger	YANLIŞ/TAKLİT — YAYINDAN KALDIR
+38	tiger2	YANLIŞ/TAKLİT — YAYINDAN KALDIR
+39	gost-94	YANLIŞ/TAKLİT — YAYINDAN KALDIR
+40	streebog-256	YANLIŞ/TAKLİT — YAYINDAN KALDIR
+41	streebog-512	YANLIŞ/TAKLİT — YAYINDAN KALDIR
+42	sm3	YANLIŞ/TAKLİT — YAYINDAN KALDIR
+43	skein-256	YANLIŞ/TAKLİT — YAYINDAN KALDIR
+44	skein-512	YANLIŞ/TAKLİT — YAYINDAN KALDIR
+45	skein-1024	YANLIŞ/TAKLİT — YAYINDAN KALDIR
+46	groestl-256	YANLIŞ/TAKLİT — YAYINDAN KALDIR
+47	groestl-512	YANLIŞ/TAKLİT — YAYINDAN KALDIR
+48	jh-256	YANLIŞ/TAKLİT — YAYINDAN KALDIR
+49	jh-512	YANLIŞ/TAKLİT — YAYINDAN KALDIR
+50	kupyna-256	YANLIŞ/TAKLİT — YAYINDAN KALDIR
+51	crc32	UYGULAMA VAR — REFERANS VEKTÖR TESTİ GEREK
+52	crc32c	UYGULAMA VAR — REFERANS VEKTÖR TESTİ GEREK
+53	crc64-ecma	YANLIŞ/TAKLİT — YAYINDAN KALDIR
+54	adler32	UYGULAMA VAR — REFERANS VEKTÖR TESTİ GEREK
+55	fnv-1a-32	UYGULAMA VAR — REFERANS VEKTÖR TESTİ GEREK
+56	fnv-1a-64	UYGULAMA VAR — REFERANS VEKTÖR TESTİ GEREK
+57	murmurhash2	YANLIŞ/TAKLİT — YAYINDAN KALDIR
+58	murmurhash3-x86-32	UYGULAMA VAR — REFERANS VEKTÖR TESTİ GEREK
+59	murmurhash3-x86-128	YANLIŞ/TAKLİT — YAYINDAN KALDIR
+60	murmurhash3-x64-128	YANLIŞ/TAKLİT — YAYINDAN KALDIR
+61	xxhash32	YANLIŞ/TAKLİT — YAYINDAN KALDIR
+62	xxhash64	YANLIŞ/TAKLİT — YAYINDAN KALDIR
+63	xxh3-64	YANLIŞ/TAKLİT — YAYINDAN KALDIR
+64	xxh3-128	YANLIŞ/TAKLİT — YAYINDAN KALDIR
+65	siphash-2-4	YANLIŞ/TAKLİT — YAYINDAN KALDIR
+66	cityhash32	YANLIŞ/TAKLİT — YAYINDAN KALDIR
+67	cityhash64	YANLIŞ/TAKLİT — YAYINDAN KALDIR
+68	cityhash128	YANLIŞ/TAKLİT — YAYINDAN KALDIR
+69	farmhash64	YANLIŞ/TAKLİT — YAYINDAN KALDIR
+70	highwayhash	YANLIŞ/TAKLİT — YAYINDAN KALDIR
+71	bcrypt	UYGULAMA VAR — REFERANS VEKTÖR TESTİ GEREK
+72	scrypt	UYGULAMA VAR — REFERANS VEKTÖR TESTİ GEREK
+73	argon2d	UYGULAMA VAR — REFERANS VEKTÖR TESTİ GEREK
+74	argon2i	UYGULAMA VAR — REFERANS VEKTÖR TESTİ GEREK
+75	argon2id	UYGULAMA VAR — REFERANS VEKTÖR TESTİ GEREK
+76	pbkdf2-hmac-sha1	UYGULAMA VAR — REFERANS VEKTÖR TESTİ GEREK
+77	pbkdf2-hmac-sha256	UYGULAMA VAR — REFERANS VEKTÖR TESTİ GEREK
+78	pbkdf2-hmac-sha512	UYGULAMA VAR — REFERANS VEKTÖR TESTİ GEREK
+79	hmac-sha256	UYGULAMA VAR — REFERANS VEKTÖR TESTİ GEREK
+80	hmac-sha512	UYGULAMA VAR — REFERANS VEKTÖR TESTİ GEREK
+81	hmac-sha1	UYGULAMA VAR — REFERANS VEKTÖR TESTİ GEREK
+82	hmac-sha384	UYGULAMA VAR — REFERANS VEKTÖR TESTİ GEREK
+83	hmac-md5	UYGULAMA VAR — REFERANS VEKTÖR TESTİ GEREK
+
+F. Gerçek doğrulama çıktıları
+
+SHA-256("abc") = ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad  [doğru]
+MD5("abc")     = 900150983cd24fb0d6963f7d28e17f72                                 [doğru]
+SHA-1("abc")   = a9993e364706816aba3e25717850c26c9cd0d89d                         [doğru]
+MD2("abc")     = 27f71e82d7f3696d0bf42dc389051009                                 [yanlış: sahte MD5 dönüşümü]
+SHA-0("abc")   = ba7816bf8f01cfea414140de5dae2223b00361a3                         [yanlış: SHA-256 kesiti]
+computeHash("foobar","abc") -> SHA-256("abc")                                 [hatalı fallback]
+PIN tüm sayılar yasak -> 000000                                                     [hatalı]
+Parola tüm karakterler yasak -> yine küçük harflerden parola                        [hatalı]
+
+Kod kontrol sonuçları: node node_modules/typescript/bin/tsc --noEmit --pretty false çıkış=0; node node_modules/eslint/bin/eslint.js 'src/**/*.{ts,tsx}' çıkış=1, 12 hata, 68 uyarı. next build girişimi çevrimdışı konteynerde eksik Linux SWC paketini npm'den indirmeye çalışırken EAI_AGAIN registry.npmjs.org ile kesildi; uygulama hatası olduğu çıkarımı yapılamaz.
+
+G. Hedef sistem çalışma yapısı (önerilen mimari)
+
+app/ (yalnızca route, meta, sayfa kabukları)
+features/
+  password-generator/    [ui, model, policy, generator, tests]
+  passphrase/            [curated real wordlists, uniform selection, tests]
+  pin/                   [constraint solver, rejection, tests]
+  hashing/               [catalog, keyed/fast/checksum implementations, test vectors]
+  password-kdf/          [argon2id, bcrypt, scrypt, pbkdf2, PHC parser, tests]
+  jwt/                   [strict JWS/JWE contracts, header+claims validator, tests]
+  encryption/            [AES-GCM, KDF envelope, encryption/decryption, tests]
+  otp/                   [base32, HOTP, TOTP, otpauth URL/QR, RFC tests]
+  keys/                  [RSA, EC, Ed25519, X25519, PEM/JWK, tests]
+shared/
+  crypto/                [CSPRNG, secure random range, constant-time byte compare]
+  ui/                    [SecretInput, Copy, Error, Loading, Accessibility]
+  worker/                [CPU-heavy KDF job, cancellation, progress]
+  security/              [supported capability registry, input limits, redaction]
+config/                  [app identity, canonical, headers, locales]
+tests/                   [unit, known-answer, differential, e2e, accessibility]
+.github/workflows/       [typecheck, lint, tests, build, dependency audit]
+
+Doğru çalışma akışı:
+
+1. Kayıtlı araç id'si run fonksiyonunu ve destek durumunu içeren tipli registry ile eşleşir.
+2. Girdi, biçim, uzunluk, salt/anahtar/iterasyon parametreleri Zod/typed parser ile doğrulanır.
+3. Gizli içerik client-side state'te tutulur, gizlenebilir, sonuçta gereksiz gösterilmez; log ve URL'ye yazılmaz.
+4. Ağ gerektiren araç (sızıntı sorgusu) ayrıca ağ kullanır diye açıklanır; yalnızca SHA-1 k-anonymity prefix'i gönderilir.
+5. Hafif işlemler local senkron/async; Argon2/scrypt/PBKDF2/bcrypt gibi ağır işlemler Web Worker'da çalışır.
+6. Her tool standarda uygun çıktı veya açık bir hata döndürür. Yanlış fallback yoktur.
+7. Çıktı; algoritma, byte uzunluğu, encoding, salt, params, doğrulama durumu gibi gerekli metadata'yı gösterir.
+8. Bütün araçların known-answer test vektörleri, yanlış input testleri ve tarayıcı e2e kontrolü vardır.
+9. Site metadata, sitemap ve hreflang bileşenleri route bazında oluşturulur.
+10. CI sadece test/lint/typecheck/build geçince yayına çıkarır.
+
+H. Aşamalı ve uygulanabilir düzeltme planı
+
+Faz 0 — doğruluk ve güvenlik kapısı
+- Sahte hash algoritmalarını, HOTP, AES-CBC, ChaCha20 ve sahte RSA çıktısını devre dışı bırak.
+- Bilinmeyen hash/araç için fallback SHA-256'yı kaldır.
+- Eksik 13 işleyici için açık durum, 4 parola sayfası için doğru yönlendirme ekle.
+- Parola/PIN imkânsız seçenekleri reddet; JWT alg allowlist koy.
+- Üretim iddialarını “kanıtlanmış/deneysel/yok” durumlarına göre güncelle.
+
+Faz 1 — parola, hash ve token altyapısı
+- Gerçek EFF Diceware listesini kullan veya liste boyunu doğru göster.
+- Güç analiziyle jeneratörün matematiksel arama alanını ayrı sun.
+- Argon2id için uygulamaya uygun memory/time params, rastgele salt ve PHC encoding uygula.
+- JWT UTF-8 Base64URL, JWS imza algoritmaları ve claim validation'ı ayır.
+- HMAC checksum / hash verifier'ı sabit zamanlı karşılaştırma ve doğru parser ile değiştir.
+
+Faz 2 — işlevlerin tamamlanması
+- AES-GCM encrypt+decrypt; sürümlü salt|nonce|ciphertext|tag envelope.
+- HOTP/TOTP'nin Base32 ve RFC vektörleri; QR/otpauth.
+- Gerçek RSA/EC/Ed25519/PEM/JWK key üretimi, şifreleme, imza doğrulama.
+- Sızıntı sorgusu için ön ek üzerinden ayrı ağ sorgusu, kullanıcıya önceden bilgi.
+- Taklit hashlerden iş değeri olanları gerçek kütüphane ile ekle; geri kalanı kaldır.
+
+Faz 3 — kalite, performans ve yayın
+- Ağır işleri Web Worker'a, dosya hashlerini streaming/chunk yaklaşımına taşı.
+- TypeScript strict, ESLint sıfır hata, test kapsamı, referans vektörler, CI/CD ekle.
+- Next Link/router, route canonical, sitemap, i18n, erişilebilirlik ve gizlilik beyanlarını düzelt.
+- Masaüstü/mobil Chrome, Safari, Firefox üzerinde uçtan uca test; CSP + secret güvenlik review.
+
+I. Yayına çıkış için somut kabul kriterleri
+
+- [ ] Katalogda “aktif” görünen her araç gerçek, doğrulanmış işlem yapıyor.
+- [ ] Tüm hashler, test vektörlerinde doğru; bilinmeyen slug hata verir.
+- [ ] KDF salt ve parametreleri rastgele/uygun, doğrulama testleri geçer; PHC/encoded hash geçerli.
+- [ ] Parola/PIN bütün izin/yasak kurallarına uyar; imkânsız konfigürasyon hata verir.
+- [ ] JWT başlık algoritması açık allowlist; imza ve claim doğrulaması bağımsız.
+- [ ] TOTP/HOTP üçüncü parti authenticator uygulamaları ve RFC vektörleriyle eşleşir.
+- [ ] AES encrypt/decrypt roundtrip ve bozulmuş ciphertext testi geçer.
+- [ ] Lint 0 hata, TypeScript 0 hata, build başarılı, CI otomatik.
+- [ ] Güç analizinde tek parolanın “gerçek Shannon entropisi” veya kesin kırılma süresi iddia edilmiyor.
+- [ ] Gizli veriler yanlışlıkla URL/console/analytics/output'ta yok; gerçek ağ denetimi tamam.
+- [ ] Kırık araçlar sitemap ve indeksleme dışında; canonical ve lang doğru.
+- [ ] Erişilebilirlik, responsive görünüm, eski/yeni tarayıcı ve Web Worker hata yönetimi testli.
+
+J. Sınırlar ve bundan sonraki doğrulama gereksinimi
+
+Bu bulgular ZIP'in koduna ve seçili doğrulamalara bağlıdır. Projede veya canlı domainde sonradan değişiklik yapılmışsa farklılaşabilir. Tüm 83 hashin ayrı resmi referans test vektörünü, tarayıcıda ağ trafiğini, bağımlılık CVE'lerini, WebAuthn/OAuth tasarımını ve tam production build'i bu ortamda başarılı biçimde doğrulayamadım. Üretim yayını öncesinde bunlar ayrı test kapılarından geçirilmelidir.
