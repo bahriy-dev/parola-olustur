@@ -35,8 +35,13 @@ export function ToolCatalog() {
             className="h-10 w-full rounded-md border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 pl-9 pr-3 text-sm text-slate-900 dark:text-zinc-100 placeholder:text-slate-500 dark:placeholder:text-zinc-500 focus:border-blue-600 focus:outline-none focus:ring-3 focus:ring-blue-600/15"
           />
         </div>
-        {/* One scrollable row on phones so the filters do not push the list off screen; wraps from sm up. */}
-        <div role="radiogroup" aria-label={t.catalog.category} onKeyDown={(e) => radioGroupKeyDown(e, filters.map((c) => c.key), category, setCategory)} className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0">
+        {/* Always one horizontally scrollable row, so the filters never take two lines; the right edge fades out to hint at more. */}
+        <div
+          role="radiogroup"
+          aria-label={t.catalog.category}
+          onKeyDown={(e) => radioGroupKeyDown(e, filters.map((c) => c.key), category, setCategory)}
+          className="-mx-4 flex snap-x gap-1.5 overflow-x-auto scroll-px-4 px-4 pb-1.5 [scrollbar-width:thin] [mask-image:linear-gradient(to_right,#000_calc(100%-2rem),transparent)] sm:mx-0 sm:scroll-px-0 sm:px-0"
+        >
           {filters.map((c) => (
             <button
               key={c.key}
@@ -45,7 +50,7 @@ export function ToolCatalog() {
               aria-checked={category === c.key}
               tabIndex={category === c.key ? 0 : -1}
               onClick={() => setCategory(c.key)}
-              className={`shrink-0 whitespace-nowrap rounded-md border px-2.5 py-1.5 text-[13px] cursor-pointer transition-colors ${
+              className={`shrink-0 snap-start whitespace-nowrap rounded-md border px-2.5 py-1.5 text-[13px] cursor-pointer transition-colors ${
                 category === c.key
                   ? selectedClass
                   : 'border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-700 dark:text-zinc-300 hover:border-slate-300 dark:hover:border-zinc-700'

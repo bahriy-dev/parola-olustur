@@ -7,7 +7,7 @@ import { cloneElement,forwardRef,isValidElement,useId,useState,type ButtonHTMLAt
 // Shared form vocabulary: every tool composes these so spacing, focus and type stay consistent.
 
 const control =
-  'w-full rounded-lg border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-950/40 px-3 py-2 text-sm text-slate-900 dark:text-zinc-100 shadow-[0_1px_2px_rgba(15,23,42,0.04)] placeholder:text-slate-400 dark:placeholder:text-zinc-500 transition-[border-color,box-shadow] hover:border-slate-400 dark:hover:border-zinc-600 focus:outline-none focus:border-blue-600 dark:focus:border-blue-500 focus:ring-4 focus:ring-blue-600/10 dark:focus:ring-blue-500/20 focus-visible:outline-none disabled:opacity-60';
+  'w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm text-fg shadow-[0_1px_2px_rgba(15,23,42,0.04)] placeholder:text-subtle transition-[border-color,box-shadow] hover:border-subtle focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/15 focus-visible:outline-none disabled:opacity-60';
 
 export const controlClass = control;
 
@@ -16,9 +16,9 @@ export const selectedClass = 'border-blue-200 bg-blue-50 text-blue-800 dark:bord
 
 type ButtonVariant = 'primary' | 'secondary' | 'ghost';
 const buttonVariants: Record<ButtonVariant, string> = {
-  primary: 'bg-blue-600 text-white shadow-[0_1px_2px_rgba(37,99,235,0.3),inset_0_1px_0_rgba(255,255,255,0.12)] hover:bg-blue-700 dark:hover:bg-blue-500',
-  secondary: 'border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-slate-800 dark:text-zinc-200 shadow-[0_1px_2px_rgba(15,23,42,0.05)] hover:border-slate-400 hover:bg-slate-50 dark:hover:border-zinc-600 dark:hover:bg-zinc-800',
-  ghost: 'text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800',
+  primary: 'bg-primary text-primary-fg shadow-[0_1px_2px_rgba(37,99,235,0.3),inset_0_1px_0_rgba(255,255,255,0.12)] hover:bg-primary-hover',
+  secondary: 'border border-line-strong bg-surface text-fg shadow-[0_1px_2px_rgba(15,23,42,0.05)] hover:border-subtle hover:bg-surface-muted',
+  ghost: 'text-muted hover:bg-surface-muted hover:text-fg',
 };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant; size?: 'sm' | 'md' }>(
@@ -248,7 +248,7 @@ export function Badge({ children }: { children: ReactNode }) {
 
 /** Raised surface for a tool or settings group. */
 export const panelClass =
-  'rounded-xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_1px_6px_-2px_rgba(15,23,42,0.06)] dark:shadow-none';
+  'rounded-xl border border-line bg-surface shadow-[0_1px_2px_rgba(15,23,42,0.04),0_1px_6px_-2px_rgba(15,23,42,0.06)] dark:shadow-none';
 
 export function Panel({ children, className = '' }: { children: ReactNode; className?: string }) {
   return <section className={`${panelClass} ${className}`}>{children}</section>;
