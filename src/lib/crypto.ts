@@ -129,7 +129,8 @@ export function generatePassphrase(options: PassphraseOptions): string {
   for (let i = 0; i < count; i++) {
     let word = sampled[i];
     if (options.capitalize) {
-      word = word.charAt(0).toUpperCase() + word.slice(1);
+      // Locale-aware so Turkish words get a dotted capital İ (izci → İzci, not Izci).
+      word = word.charAt(0).toLocaleUpperCase(options.language) + word.slice(1);
     }
     chosenWords.push(word);
   }

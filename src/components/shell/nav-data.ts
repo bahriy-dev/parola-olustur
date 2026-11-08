@@ -41,19 +41,36 @@ export const AVAILABLE_TOOL_COUNT = AVAILABLE_TOOLS.length;
 /** Internal path of a tool; single-algorithm hash tools live on their /hash/<slug> page. */
 export const toolHref = (tool: Pick<SecurityTool, 'id'>) => (HASH_TOOL_SLUGS[tool.id] ? `/hash/${HASH_TOOL_SLUGS[tool.id]}` : `/araclar/${tool.id}`);
 
+/**
+ * Folds case, Turkish letters and punctuation so "SHA-256", "sha256" and "Sha 256", or "şifre" and "sifre",
+ * compare equal. Only used for matching; display text is untouched.
+ */
+export const normalizeSearch = (text: string) =>
+  text
+    .toLocaleLowerCase('tr')
+    .replace(/[çğıöşü]/g, (c) => ({ ç: 'c', ğ: 'g', ı: 'i', ö: 'o', ş: 's', ü: 'u' })[c] ?? c)
+    .normalize('NFKD')
+    .replace(/[^a-z0-9]+/g, '');
+
+// Everyday words people type for the same thing, in either language.
+const SYNONYMS: Record<string, string> = { sifre: 'parola', password: 'parola', passwort: 'parola', hesapla: 'hash', ozet: 'hash', sifrele: 'encrypt', coz: 'decode' };
+
 /** Ranks tools by name prefix, name match, then description/standard/tags. Both languages' names are searchable. */
 export function searchTools(query: string, lang: Locale, limit = Infinity): SecurityTool[] {
-  const locale = lang === 'tr' ? 'tr' : 'en';
-  const q = query.toLocaleLowerCase(locale).trim();
-  if (!q) return [];
+  const raw = normalizeSearch(query);
+  if (!raw) return [];
+  const terms = [raw, SYNONYMS[raw]].filter(Boolean) as string[];
   const scored = AVAILABLE_TOOLS.map((tool) => {
     const own = toolText(tool, lang);
     const other = toolText(tool, lang === 'tr' ? 'en' : 'tr');
-    const name = own.name.toLocaleLowerCase(locale);
-    const haystack = [own.description, other.name, tool.standard ?? '', ...tool.tags].join(' ').toLocaleLowerCase(locale);
-    const score = name.startsWith(q) ? 0 : name.includes(q) ? 1 : haystack.includes(q) ? 2 : -1;
+    const name = normalizeSearch(own.name);
+    const otherName = normalizeSearch(other.name);
+    const haystack = normalizeSearch([own.description, tool.standard ?? '', ...tool.tags].join(' '));
+    const score = Math.min(
+      ...terms.map((q) => (name.startsWith(q) ? 0 : name.includes(q) ? 1 : otherName.includes(q) ? 2 : haystack.includes(q) ? 3 : 9)),
+    );
     return { tool, score };
-  }).filter((entry) => entry.score >= 0);
+  }).filter((entry) => entry.score < 9);
   scored.sort((a, b) => a.score - b.score);
   return scored.slice(0, limit).map((entry) => entry.tool);
 }

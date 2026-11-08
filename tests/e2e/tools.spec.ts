@@ -63,9 +63,12 @@ test('multi-hash selection only uses visible algorithms; the language switch ope
  await page.goto('/hash/kategori/parola-kdf');await expect(page.getByRole('radio',{name:'Hash oluştur',exact:true})).toBeVisible();
  await expect(page.getByRole('radio',{name:'Çoklu hash',exact:true})).toHaveCount(0);
  // The language switch links to the same page in English: /sss → /en/faq, with the document itself in English.
- await page.goto('/sss');await page.getByRole('link',{name:/^en – English$/}).click();
+ // On phones the language switch lives in the menu.
+ await page.goto('/sss');if(!await page.getByRole('link',{name:/^en – English$/}).isVisible())await page.getByRole('button',{name:'Menüyü aç'}).click();
+ await page.getByRole('link',{name:/^en – English$/}).click();
  await expect(page).toHaveURL(/\/en\/faq$/);await expect(page.locator('html')).toHaveAttribute('lang','en');
  await expect(page.getByRole('heading',{level:1})).toHaveText('Frequently Asked Questions');expect(await page.title()).toContain('Frequently Asked Questions');
+ if(!await page.getByRole('link',{name:/^tr – Türkçe$/}).isVisible())await page.getByRole('button',{name:'Open menu'}).click();
  await page.getByRole('link',{name:/^tr – Türkçe$/}).click();await expect(page).toHaveURL(/\/sss$/);await expect(page.locator('html')).toHaveAttribute('lang','tr');
 });
 test('single-algorithm hash tools redirect to their hash page, which carries the article',async({page})=>{
@@ -73,4 +76,19 @@ test('single-algorithm hash tools redirect to their hash page, which carries the
  await expect(page.getByRole('heading',{level:3,name:'SHA-256 nedir?'})).toBeVisible();
  await page.goto('/araclar');await expect(page.getByText(/^\d+ araç$/)).toHaveText(`${await page.locator('main li a').count()} araç`);
  await expect(page.getByRole('link',{name:/Henüz mevcut değil/})).toHaveCount(0);
+});
+test('search palette finds tools by any spelling and the mobile menu works',async({page},testInfo)=>{
+ await page.goto('/');
+ // ⌘K / Ctrl+K opens the palette; "sha-256", "SHA 256" and "sha256" all lead to the same tool.
+ await page.keyboard.press(process.platform==='darwin'?'Meta+k':'Control+k');
+ const input=page.getByRole('combobox',{name:'Araçlarda ara'});await expect(input).toBeFocused();
+ await input.fill('SHA 256');await expect(page.getByRole('listbox',{name:'Araçlarda ara'}).getByRole('option').first()).toContainText('SHA-256');
+ await page.keyboard.press('Enter');await expect(page).toHaveURL(/\/hash\/sha-256$/);
+ await page.keyboard.press(process.platform==='darwin'?'Meta+k':'Control+k');await page.getByRole('combobox',{name:'Araçlarda ara'}).fill('zzzz-yok');
+ await expect(page.getByText('Sonuç yok')).toBeVisible();await page.keyboard.press('Escape');await expect(page.getByRole('combobox',{name:'Araçlarda ara'})).toHaveCount(0);
+ if(testInfo.project.name==='mobile'){
+  await page.getByRole('button',{name:'Menüyü aç'}).click();const menu=page.getByRole('dialog',{name:'Menü'});
+  await expect(menu).toBeVisible();await page.keyboard.press('Escape');await expect(menu).toHaveCount(0);
+  await page.getByRole('button',{name:'Menüyü aç'}).click();await menu.getByRole('link',{name:'Tüm araçlar'}).click();await expect(page).toHaveURL(/\/araclar$/);
+ }
 });
