@@ -83,6 +83,6 @@ test('BLAKE reference vectors and SHAKE differential coverage',async()=>{
  'kangarootwelve':'1ac2d450fc3b4205d19da7bfca1b37513c0803577ac7167f06fe2ce1f0ef39e5'};
  for(const [slug,expected] of Object.entries(vectors))assert.equal((await computeHash(slug,'')).hash,expected);
  for(const [slug,reference,length] of [['shake128','shake128',32],['shake256','shake256',64],['cshake128','shake128',32],['cshake256','shake256',64]] as const)assert.equal((await computeHash(slug,'abc')).hash,createHash(reference,{outputLength:length}).update('abc').digest('hex'));
- assert.equal((await computeHash('md5-md5','abc')).hash,createHash('md5').update(createHash('md5').update('abc').digest()).digest('hex'));
+ assert.equal((await computeHash('md5-md5','abc')).hash,createHash('md5').update(createHash('md5').update('abc').digest('hex')).digest('hex'));
  assert.equal((await computeHash('md5-sha1','abc')).hash,createHash('md5').update('abc').digest('hex')+createHash('sha1').update('abc').digest('hex'));
 });

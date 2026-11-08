@@ -74,7 +74,8 @@ test('password generators honour every option', async () => {
     const options = { wordCount: 3 + rnd(8), separator: (['-', '.', '_', ' '] as const)[rnd(4)], capitalize: rnd(2) === 1, addNumber: rnd(2) === 1, addSymbol: rnd(2) === 1, language } as const;
     const value = generatePassphrase(options);
     const list = new Set((language === 'en' ? ENGLISH_WORDS : TURKISH_WORDS).map((w) => w.toLocaleLowerCase(language)));
-    const words = value.split(options.separator).map((w) => w.replace(/[0-9!@#$%&*]+$/, ''));
+    // The optional number and symbol are appended as their own separator-joined parts; only the rest are words.
+    const words = value.split(options.separator).filter((part) => !/^[0-9!@#$%&*]+$/.test(part)).map((w) => w.replace(/[0-9!@#$%&*]+$/, ''));
     assert.equal(words.length, options.wordCount, value);
     for (const word of words) assert.ok(list.has(word.toLocaleLowerCase(language)), `${word} not in list (${value})`);
     assert.equal(new Set(words.map((w) => w.toLocaleLowerCase(language))).size, words.length, `repeated word in ${value}`);

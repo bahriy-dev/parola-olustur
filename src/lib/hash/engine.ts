@@ -175,8 +175,9 @@ export async function computeHash(
       break;
     }
     case 'md5-md5': {
+      // md5(md5($pass)) as in PHP apps and hashcat mode 2600: the inner digest is hashed as its lowercase hex text.
       const first = md5(bytes);
-      const second = md5(first);
+      const second = md5(new TextEncoder().encode(bytesToHex(first)));
       hashOutput = bytesToHex(second);
       break;
     }

@@ -3,10 +3,77 @@
 /* dark: utilities follow the in-app theme toggle (html.dark), not the OS preference. */
 @custom-variant dark (&:where(.dark, .dark *));
 
+/*
+ * Design tokens. Components use the semantic names (bg-surface, text-muted, border-line, bg-primary …); the raw
+ * values live only here, once for light and once for dark.
+ */
+:root {
+  --bg: #f8fafc;
+  --surface: #ffffff;
+  --surface-muted: #f1f5f9;
+  --fg: #0f172a;
+  --fg-muted: #475569;
+  --fg-subtle: #64748b;
+  --line: #e2e8f0;
+  --line-strong: #cbd5e1;
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --primary-fg: #ffffff;
+  --primary-soft: #eff6ff;
+  --primary-soft-fg: #1e40af;
+  --focus: #2563eb;
+  --success: #047857;
+  --warning: #b45309;
+  --danger: #b91c1c;
+  --header-h: 3.5rem;
+  --container: 72rem;
+  --content: 56rem;
+  --duration: 150ms;
+}
+
+.dark {
+  --bg: #09090b;
+  --surface: #18181b;
+  --surface-muted: #27272a;
+  --fg: #fafafa;
+  --fg-muted: #a1a1aa;
+  --fg-subtle: #a1a1aa;
+  --line: #27272a;
+  --line-strong: #3f3f46;
+  /* Same blue as light: white text on it keeps 4.5:1+ (lighter blues fall below WCAG AA). */
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --primary-fg: #ffffff;
+  --primary-soft: rgb(59 130 246 / 0.12);
+  --primary-soft-fg: #bfdbfe;
+  --focus: #60a5fa;
+  --success: #34d399;
+  --warning: #fbbf24;
+  --danger: #f87171;
+}
+
 /* Geist for UI text, Geist Mono for every `font-mono` value (passwords, hashes, code). */
 @theme inline {
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-fg: var(--fg);
+  --color-muted: var(--fg-muted);
+  --color-subtle: var(--fg-subtle);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-fg: var(--primary-fg);
+  --color-primary-soft: var(--primary-soft);
+  --color-primary-soft-fg: var(--primary-soft-fg);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --container-site: var(--container);
+  --container-content: var(--content);
 }
 
 @layer base {
@@ -23,8 +90,8 @@
 
   body {
     /* Matches the app shell so overscroll and the area behind the drawer never flash white. */
-    background-color: #f8fafc;
-    color: #0f172a;
+    background-color: var(--bg);
+    color: var(--fg);
     font-family: var(--font-sans);
     font-feature-settings: "cv11", "ss01";
     min-height: 100vh;
@@ -32,11 +99,6 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
-  }
-
-  .dark body {
-    background-color: #09090b;
-    color: #fafafa;
   }
 
   ::selection {
@@ -50,13 +112,9 @@
   }
 
   :focus-visible {
-    outline: 2px solid #2563eb;
+    outline: 2px solid var(--focus);
     outline-offset: 2px;
     border-radius: 6px;
-  }
-
-  .dark :focus-visible {
-    outline-color: #60a5fa;
   }
 }
 
