@@ -2,7 +2,7 @@
 
 **Browser-based password generation, hashing, and cryptography tools — in Turkish and English.**
 
-[![CI](https://github.com/bahriy-dev/parola-olustur/actions/workflows/ci.yml/badge.svg)](https://github.com/bahriy-dev/parola-olustur/actions/workflows/ci.yml)
+[![CI](https://github.com/bahriy-dev/password-generator-parola-olustur/actions/workflows/ci.yml/badge.svg)](https://github.com/bahriy-dev/password-generator-parola-olustur/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Node.js 24](https://img.shields.io/badge/Node.js-24-43853d.svg)](.nvmrc)
 
@@ -30,8 +30,8 @@ The tool registry records availability explicitly. AES-CBC, ChaCha20-Poly1305, a
 Use Node.js 24 (see [.nvmrc](.nvmrc)) and npm.
 
 ```bash
-git clone https://github.com/bahriy-dev/parola-olustur.git
-cd parola-olustur
+git clone https://github.com/bahriy-dev/password-generator-parola-olustur.git
+cd password-generator-parola-olustur
 npm ci
 npm run dev
 ```
