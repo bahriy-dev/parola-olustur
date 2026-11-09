@@ -47,11 +47,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/bahriy-dev/parola-olustur.git"
+    "url": "git+https://github.com/bahriy-dev/password-generator-parola-olustur.git"
   },
   "homepage": "https://parolaolustur.com",
   "bugs": {
-    "url": "https://github.com/bahriy-dev/parola-olustur/issues"
+    "url": "https://github.com/bahriy-dev/password-generator-parola-olustur/issues"
   },
   "keywords": [
     "password-generator",
