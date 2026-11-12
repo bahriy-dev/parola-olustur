@@ -15,7 +15,7 @@
     "test:tools": "tsx --test --test-timeout=900000 tests/tools.fuzz.ts",
     "test:e2e": "playwright test",
     "check": "npm run typecheck && npm run lint && npm test && npm run build",
-    "package:source": "tar --exclude=node_modules --exclude=.next --exclude=.git --exclude=.claude --exclude=.gemini --exclude=.railway --exclude=.env --exclude='.env.*' --exclude='*.tgz' --exclude='*.pem' --exclude='*.key' --exclude='*.p12' --exclude='*.pfx' --exclude='.DS_Store' --exclude='*.tsbuildinfo' --exclude=test-results --exclude=playwright-report --exclude=output --exclude=__MACOSX -czf parola-source.tgz ."
+    "package:source": "git archive --format=tar.gz -o parola-source.tgz HEAD"
   },
   "dependencies": {
     "@noble/hashes": "^2.4.0",

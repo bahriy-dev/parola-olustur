@@ -24,7 +24,7 @@ Keep changes focused. Describe the problem, resulting behavior, and validation. 
 
 Follow [the architecture guide](docs/architecture.md). Keep registry metadata, execution capabilities, UI fields, both locales, and tests consistent. Unsupported algorithms must fail explicitly; do not silently substitute another algorithm. Avoid unverified security, compliance, constant-time, or entropy claims.
 
-Read the Next.js documentation bundled in `node_modules/next/dist/docs/` before changing framework behavior, as requested in `AGENTS.md`.
+Read the Next.js documentation bundled in `node_modules/next/dist/docs/` before changing framework behavior; this release has breaking changes compared to older Next.js versions.
 
 ## Issues and conduct
 

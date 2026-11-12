@@ -45,8 +45,6 @@ next-env.d.ts
 
 # Public source distribution
 !.env.example
-.claude/
-.gemini/
 .idea/
 .vscode/
 .railway/
