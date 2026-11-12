@@ -202,7 +202,8 @@ export function generateNanoId(size = 21): string {
   let id = '';
   const bytes = randomBytes(size);
   for (let i = 0; i < size; i++) {
-    id += alphabet[bytes[i] % alphabet.length];
+    // The alphabet has exactly 64 symbols, so the low six bits pick one without bias.
+    id += alphabet[bytes[i] & 63];
   }
   return id;
 }
