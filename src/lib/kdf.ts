@@ -42,7 +42,8 @@ export function verifyKdf(password: string, encoded: string): boolean {
     const m = Number(memory), t = Number(time), p = Number(parallel);
     const salt = decode(saltText), expected = decode(hashText);
     if (p < 1 || p > 4 || m < 8*p || m > 65536 || t < 1 || t > 6 || salt.length < 8 || salt.length > 64 || expected.length !== 32) throw new Error('Argon2 parametreleri destek sınırları dışında.');
-    return equalBytes({argon2id,argon2i,argon2d}[type as 'argon2id'](password, salt, {m,t,p,dkLen:32}), expected);
+    const argon2 = type === 'argon2id' ? argon2id : type === 'argon2i' ? argon2i : argon2d;
+    return equalBytes(argon2(password, salt, {m,t,p,dkLen:32}), expected);
   }
   const sc = encoded.match(/^\$scrypt\$ln=(\d+),r=(\d+),p=(\d+)\$([A-Za-z0-9+/]+)\$([A-Za-z0-9+/]+)$/);
   if (sc) {
@@ -55,7 +56,8 @@ export function verifyKdf(password: string, encoded: string): boolean {
   if (pb) {
     const [,alg,iterations,saltText,hashText]=pb, c=Number(iterations),salt=decode(saltText),expected=decode(hashText);
     if(c<1 || c>2000000 || salt.length<8 || salt.length>64 || expected.length!==32) throw new Error('PBKDF2 parametre sınırı.');
-    return equalBytes(pbkdf2({sha256,sha512,sha1}[alg as 'sha256'],password,salt,{c,dkLen:32}),expected);
+    const hash=alg==='sha512'?sha512:alg==='sha1'?sha1:sha256;
+    return equalBytes(pbkdf2(hash,password,salt,{c,dkLen:32}),expected);
   }
   throw new Error('Desteklenmeyen encoded hash biçimi.');
 }
